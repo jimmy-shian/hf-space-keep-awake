@@ -1,0 +1,14 @@
+name: Keep HF Space Awake
+
+on:
+  schedule:
+    - cron: '40 15 * * *'   # 每天 UTC 15:40（台灣時間 23:40）
+  workflow_dispatch:         # 可手動觸發
+
+jobs:
+  keep-awake:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping HF Space to keep awake
+        run: |
+          curl -s "https://dches-n8n-free.hf.space" > /dev/null
