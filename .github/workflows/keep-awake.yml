@@ -11,5 +11,5 @@ jobs:
     steps:
       - name: Ping HF Space to keep awake
         run: |
-          curl -s "https://dches-n8n-free.hf.space" > /dev/null
+          curl -s "https://dches-n8n-free.hf.space/webhook/index" > /dev/null
           curl -s "https://jimmyhsiung-gradio-discord-bot.hf.space/" > /dev/null

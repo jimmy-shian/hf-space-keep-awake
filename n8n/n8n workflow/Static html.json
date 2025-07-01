@@ -1,0 +1,162 @@
+{
+  "name": "Static html",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "index",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -400,
+        100
+      ],
+      "id": "3f92a9f8-6cda-46ba-a417-986104779316",
+      "name": "Webhook",
+      "webhookId": "aa9c4d2b-4145-4c5f-8af6-e1c1d916f1c3"
+    },
+    {
+      "parameters": {
+        "url": "https://huggingface.co/spaces/Dches/n8n-free/raw/main/read.md",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -180,
+        100
+      ],
+      "id": "2544bfbe-e6d3-495c-a34f-f336cb5e3015",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "jsCode": "const md = $input.first().json.data;\n\nlet html = md\n  // 標題\n  .replace(/^### (.*$)/gm, '<h3>$1</h3>')\n  .replace(/^## (.*$)/gm, '<h2>$1</h2>')\n  .replace(/^# (.*$)/gm, '<h1>$1</h1>')\n\n  // 清單\n  .replace(/^\\s*[-*+]\\s+(.*)$/gm, '<li>$1</li>')\n\n  // 引用、水平線、文字樣式\n  .replace(/^>\\s+(.*$)/gm, '<blockquote>$1</blockquote>')\n  .replace(/^---$/gm, '<hr>')\n  .replace(/\\*\\*(.*?)\\*\\*/g, '<b>$1</b>')\n  .replace(/\\*(.*?)\\*/g, '<i>$1</i>')\n  .replace(/_(.*?)_/g, '<i>$1</i>')\n  .replace(/`(.*?)`/g, '<code>$1</code>');\n\n// 包住連續 li 為 ul\nhtml = html.replace(/(?:<li>.*?<\\/li>\\s*)+/g, match => {\n  return `<ul>${match}</ul>`;\n});\n\n// 移除多餘 <br>\nhtml = html.replace(/<br>/g, '');\n\nconst body = `\n<html>\n  <head>\n    <title>Markdown Preview</title>\n    <meta charset=\"UTF-8\" />\n    <style>\n      body {\n        font-family: \"Helvetica Neue\", sans-serif;\n        background: #fdfdfd;\n        color: #333;\n        line-height: 1.7;\n        font-size: 16px;\n        display: flex;\n        justify-content: center;\n        padding: 40px 20px;\n      }\n      .container {\n        max-width: 800px;\n        width: 100%;\n      }\n      h1, h2, h3 {\n        color: #222;\n      }\n      ul {\n        margin: 1em 0;\n        padding-left: 40px;\n      }\n      code {\n        background: #f0f0f0;\n        padding: 2px 6px;\n        border-radius: 4px;\n        font-family: monospace;\n      }\n      blockquote {\n        border-left: 4px solid #ccc;\n        padding-left: 12px;\n        margin-left: 0;\n        color: #555;\n        font-style: italic;\n        background: #f9f9f9;\n      }\n      hr {\n        border: none;\n        border-top: 1px solid #ccc;\n        margin: 2em 0;\n      }\n    </style>\n  </head>\n  <body>\n    <div class=\"container\">\n      ${html}\n    </div>\n  </body>\n</html>\n`;\n\nreturn [{\n  json: {\n    htmlContent: html,\n    body: body\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        40,
+        100
+      ],
+      "id": "ee7d127b-66c2-4e53-af83-0ae9f7c50779",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.body }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        260,
+        100
+      ],
+      "id": "8262cf87-2da2-4568-8cf9-b1d4e3d5d2aa",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "url": "https://dches-n8n-free.hf.space",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -200,
+        -160
+      ],
+      "id": "c4355306-fa9f-4699-9f63-e3408c4eb875",
+      "name": "HTTP Request1"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 23,
+              "triggerAtMinute": 25
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -420,
+        -160
+      ],
+      "id": "6567cba4-13fc-42f7-a40c-3466b015a923",
+      "name": "Schedule Trigger"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        []
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "ddca1894-2982-4582-9e54-cff267ad7ee3",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "e3026a9653e27aa65188a9184cd098b1e84238f526e228ce85d9281801085e52"
+  },
+  "id": "Ncf2k1BwoJgkX66o",
+  "tags": []
+}

@@ -1,0 +1,589 @@
+{
+  "name": "My workflow 3",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "webhook/line-webhook",
+        "options": {}
+      },
+      "name": "LINE Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -260,
+        60
+      ],
+      "webhookId": "line-webhook",
+      "id": "378ff220-164d-417e-a165-d851b001eb67"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.body.events[0].message.text }}",
+              "operation": "startsWith",
+              "value2": "任務"
+            }
+          ]
+        }
+      },
+      "name": "Is Task?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        60
+      ],
+      "id": "1652685f-579f-4344-be16-6a9b25724e97"
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "databaseId": {
+          "__rl": true,
+          "value": "220d2302bdfe81b0a744f6527058308c",
+          "mode": "id"
+        },
+        "simple": false,
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "Name|title",
+              "title": "={{ $json.task }}"
+            },
+            {
+              "key": "Created At|date",
+              "date": "={{ \tnew Date($node['Is Task?'].json.body.events[0].timestamp).toISOString() }}",
+              "timezone": "Asia/Taipei"
+            },
+            {
+              "key": "Creator|rich_text",
+              "textContent": "={{ $('Is Task?').item.json.body.events[0].source.userId }}"
+            },
+            {
+              "key": "LineMessageID|rich_text",
+              "textContent": "={{ $node['Is Task?'].json.body.events[0].message.id }}"
+            },
+            {
+              "key": "Status|select",
+              "selectValue": "f622e93b-93ad-4d24-aa35-cd9034792165"
+            },
+            {
+              "key": "Complete|checkbox"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Create Notion Task",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 1,
+      "position": [
+        400,
+        -40
+      ],
+      "id": "abf76ac1-f86e-41d8-ba67-ef8429cbdf37",
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "credentials": {
+        "notionApi": {
+          "id": "dCZ0QEF9BgstjdeR",
+          "name": "Notion account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "const today = new Date().toISOString().split('T')[0];\nconst tasks = items.map(item => item.json);\nconst todayTasks = tasks.filter(task => {\n  const taskDate = task.property_created_at?.start?.split('T')[0];\n  return taskDate === today;\n});\n\nconst taskList = todayTasks.map(task => {\n  const name = task.property_name || \"未命名任務\";\n  const timeSpent = task.property_time_spent_minutes || \"未記錄耗時\";\n  // 根據狀態選擇 Emoji\n  const statusEmoji = task.property_status === \"完成\" ? \"🟢\" : \"🔴\";\n  // 這裡用 \\n 會讓 LINE 自動換行\n  return `${statusEmoji} ${name}（耗時：${timeSpent}）`;\n}).join('\\\\n');\n\nconst taskCount = todayTasks.length;\nconst notionLink = \"https://www.notion.so/220d2302bdfe81eab2bae71bc581d051?v=220d2302bdfe81ad85cf000cc284301a&source=copy_link\";\nconst message = `📋 今日任務 (${taskCount} 項):\\\\n${taskList}\\\\n📌 Notion 任務清單：\\\\n\\\\n${notionLink}`;\n\nreturn [{\n  json: {\n    message,\n    taskCount,\n    taskList,\n    notionLink\n  }\n}];\n"
+      },
+      "name": "Format Task List",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        180,
+        520
+      ],
+      "id": "d1746ed2-c2ba-4730-b5b8-edba5db026bb"
+    },
+    {
+      "parameters": {
+        "functionCode": "const event = items[0].json.body.events[0];\n\nif (event.message.type === 'text' && event.message.quotedMessageId) {\n  const completeText = event.message.text;\n\n  if (completeText.includes('完成') || completeText.includes('已完成')) {\n    let completedBy = completeText.replace(/完成|已完成/g, '').trim();\n    if (!completedBy) {\n      completedBy = event.source.userId;\n    }\n\n    return [{\n      json: {\n        quotedMessageId: event.message.quotedMessageId,  // 引用的訊息 ID\n        completedBy: completedBy,                        // 完成者\n        completedAt: new Date().toISOString()            // 完成時間\n      }\n    }];\n  }\n}\n\nreturn [];\n"
+      },
+      "name": "Check Task Completion",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        400,
+        160
+      ],
+      "id": "c5600071-fc0c-4469-a0bb-871a6bc4a0f8"
+    },
+    {
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "mode": "custom",
+              "cronExpression": "30 16 * * 1-5"
+            }
+          ]
+        }
+      },
+      "name": "Daily at 4:30 PM",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        -260,
+        520
+      ],
+      "id": "ad3e56d9-e43c-43eb-babd-a3ea19823fbe"
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "getAll",
+        "databaseId": {
+          "__rl": true,
+          "value": "220d2302bdfe81b0a744f6527058308c",
+          "mode": "id",
+          "__regex": "^([0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12})"
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        -40,
+        520
+      ],
+      "id": "3ecaaa6a-0b3b-4813-960f-4acdb40d00ea",
+      "name": "Get many database pages",
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "credentials": {
+        "notionApi": {
+          "id": "dCZ0QEF9BgstjdeR",
+          "name": "Notion account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.line.me/v2/bot/message/push",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"to\": \"C14bc3719f9a78edf7d2ad9007d32425a\",\n  \"messages\": [\n    {\n      \"type\": \"text\",\n      \"text\": \"{{$node['Format Task List'].json['message']}}\"\n    }\n  ]\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        620,
+        420
+      ],
+      "id": "226c1fc5-2934-4c02-9750-d315de1f2221",
+      "name": "HTTP Request",
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "JJhq96skVHnIkAv6",
+          "name": "Bearer Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "update",
+        "pageId": {
+          "__rl": true,
+          "value": "={{ $json.id }}",
+          "mode": "id"
+        },
+        "simple": false,
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "Completed At|date",
+              "date": "={{ $('Check Task Completion').item.json.completedAt }}",
+              "timezone": "Asia/Taipei"
+            },
+            {
+              "key": "Completer|rich_text",
+              "textContent": "={{ $('Check Task Completion').item.json.completedBy }}"
+            },
+            {
+              "key": "Status|select",
+              "selectValue": "e7834302-3183-442b-b82f-486bd5fd2d21"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Update Task Status1",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 1,
+      "position": [
+        840,
+        160
+      ],
+      "id": "0a9fd48e-ce60-460b-91f5-a92bd1d70883",
+      "credentials": {
+        "notionApi": {
+          "id": "dCZ0QEF9BgstjdeR",
+          "name": "Notion account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "getAll",
+        "databaseId": {
+          "__rl": true,
+          "value": "220d2302bdfe81b0a744f6527058308c",
+          "mode": "id"
+        },
+        "returnAll": true,
+        "options": {
+          "filter": {
+            "singleCondition": {
+              "key": "LineMessageID|rich_text",
+              "condition": "equals",
+              "richTextValue": "={{ $json.quotedMessageId }}"
+            }
+          }
+        }
+      },
+      "name": "GetData",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 1,
+      "position": [
+        620,
+        160
+      ],
+      "id": "e969a3bc-6557-40aa-a96a-80d0fd1c0f3e",
+      "credentials": {
+        "notionApi": {
+          "id": "dCZ0QEF9BgstjdeR",
+          "name": "Notion account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const text = $node['Is Task?'].json.body.events[0].message.text;\n\n// 移除開頭「任務」字眼\nlet taskText = text.replace(/^任務/, '');\n\n// 用空白或冒號（半形/全形）拆分\nconst splitters = [':', '：', ' ', '　'];\nlet splitted = [];\nfor (const splitter of splitters) {\n  if (taskText.includes(splitter)) {\n    splitted = taskText.split(splitter);\n    break;\n  }\n}\nif (splitted.length === 0) {\n  splitted = [taskText];\n}\n\n// 取最後一個（通常冒號後面或空白後就是任務）\nconst task = splitted[splitted.length - 1].trim();\n\nreturn [{ json: { task: task } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        180,
+        -40
+      ],
+      "id": "e02b7613-600c-4818-ae23-c2eb33c20d0e",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.body.events[0].message.text }}",
+              "operation": "contains",
+              "value2": "完成"
+            }
+          ]
+        }
+      },
+      "name": "Is Complete?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        180,
+        160
+      ],
+      "id": "f827c4e0-55ba-486e-a8d9-20078e3ded5f"
+    },
+    {
+      "parameters": {
+        "content": "## 任務建立區\n\n透過監聽群組訊息\n依照特定格式的訊息會被加入到Notion列表",
+        "height": 440,
+        "width": 1440
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -380,
+        -120
+      ],
+      "typeVersion": 1,
+      "id": "2247b349-d15d-489d-a914-d8b599ca031a",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## 平日 4:30發送訊息",
+        "height": 380,
+        "width": 1240,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -380,
+        400
+      ],
+      "typeVersion": 1,
+      "id": "d6287f20-f43d-49f0-a88e-519566904a40",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "129a73b1-4347-45b7-9bc0-d02ce75a975c",
+              "leftValue": "={{\t$node[\"Format Task List\"].json.taskCount }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        400,
+        520
+      ],
+      "id": "0bb3ec2b-1b94-4dfd-a87c-e818c5c961ba",
+      "name": "Has Tasks Today?"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        620,
+        620
+      ],
+      "id": "810b61fd-94a9-46b2-9d9e-687cbd8e9a18",
+      "name": "No Operation, do nothing"
+    }
+  ],
+  "pinData": {
+    "LINE Webhook": [
+      {
+        "json": {
+          "headers": {
+            "x-forwarded-for": "147.92.150.197",
+            "x-forwarded-proto": "https",
+            "x-forwarded-port": "443",
+            "host": "dches-n8n-free.hf.space",
+            "x-amzn-trace-id": "Root=1-6860f42b-0b72baca50202fb8156377e7",
+            "content-length": "616",
+            "x-line-signature": "oAC9VVuFvEJU4FeMeQ/q/buj9/GhTxAsLoIbj9rbkuA=",
+            "content-type": "application/json; charset=utf-8",
+            "user-agent": "LineBotWebhook/2.0",
+            "x-request-id": "C7CDeE, C7CDeE",
+            "x-ip-token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpcCI6IjE0Ny45Mi4xNTAuMTk3IiwidXNlciI6bnVsbCwidXVpZCI6bnVsbCwiZXJyb3IiOm51bGwsImV4cCI6MTc1MTE4NDQ4N30.IjamT2f7k9bXp07ZACfyeV1LOd-1xJHwd7hK0Gc9XyQ",
+            "x-direct-url": "https://dches-n8n-free.hf.space/--replicas/607en/webhook/webhook/line-webhook"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "destination": "U1472b7eaea68f99cb6efa915c80b6403",
+            "events": [
+              {
+                "type": "message",
+                "message": {
+                  "type": "text",
+                  "id": "567662341593235644",
+                  "quoteToken": "Iskq0Qvd_BpT4jcOSLGppKxkaSvQqrUzFERnvLwwt2RQMNxc-zSmTNT6bRGh6dl1lEw5OkiHzgY27wLjPs8KJxx7L_v4rnXHyU2sydQ1MdytJKyU9o1tpxDC8rFSI-U6P59K6Y0r-L8X6oCV9KKSKw",
+                  "text": "任務 打人"
+                },
+                "webhookEventId": "01JYXBKHE2VWA0JMZ5ND6FQDVV",
+                "deliveryContext": {
+                  "isRedelivery": false
+                },
+                "timestamp": 1751184426238,
+                "source": {
+                  "type": "group",
+                  "groupId": "C14bc3719f9a78edf7d2ad9007d32425a",
+                  "userId": "U3dcf7fb39f5815a2a87c5b4c1d7da66b"
+                },
+                "replyToken": "de2e21f4d2334d20942d4e0af76fa7c7",
+                "mode": "active"
+              }
+            ]
+          },
+          "webhookUrl": "https://Dches-n8n-free.hf.space/webhook/webhook/line-webhook",
+          "executionMode": "production"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "LINE Webhook": {
+      "main": [
+        [
+          {
+            "node": "Is Task?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Task?": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Is Complete?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Daily at 4:30 PM": {
+      "main": [
+        [
+          {
+            "node": "Get many database pages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Task List": {
+      "main": [
+        [
+          {
+            "node": "Has Tasks Today?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Task Completion": {
+      "main": [
+        [
+          {
+            "node": "GetData",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many database pages": {
+      "main": [
+        [
+          {
+            "node": "Format Task List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Task Status1": {
+      "main": [
+        []
+      ]
+    },
+    "GetData": {
+      "main": [
+        [
+          {
+            "node": "Update Task Status1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Create Notion Task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Complete?": {
+      "main": [
+        [
+          {
+            "node": "Check Task Completion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Tasks Today?": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Operation, do nothing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "No Operation, do nothing": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "db632f3c-c93c-4714-a40d-41e945d581bc",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "e3026a9653e27aa65188a9184cd098b1e84238f526e228ce85d9281801085e52"
+  },
+  "id": "aJBWngMAceWmw9Vh",
+  "tags": []
+}
